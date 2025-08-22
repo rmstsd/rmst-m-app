@@ -1,4 +1,5 @@
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera'
+import * as Haptics from 'expo-haptics'
 import { useEffect, useState } from 'react'
 import { AppState, Button, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
@@ -13,7 +14,7 @@ export default function App() {
     const subscription = AppState.addEventListener('change', nextAppState => {
       console.log('nextAppState', nextAppState)
       setAppState(nextAppState)
-      setCanScan(nextAppState === 'active')
+      // setCanScan(nextAppState === 'active')
     })
 
     return () => {
@@ -58,6 +59,8 @@ export default function App() {
           }
           const url = barcode.data
           if (isValidURL(url)) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)
+
             setCanScan(false)
             openURL(url)
           } else {
