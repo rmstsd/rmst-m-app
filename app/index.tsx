@@ -48,7 +48,7 @@ export default function App() {
     Linking.openURL(url).catch(err => console.error('An error occurred', err))
   }
 
-  return (
+  let camEle = (
     <View style={styles.container}>
       <CameraView
         style={styles.camera}
@@ -78,6 +78,8 @@ export default function App() {
       </CameraView>
     </View>
   )
+
+  return camEle
 }
 
 function isValidURL(text) {
