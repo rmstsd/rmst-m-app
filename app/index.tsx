@@ -1,8 +1,8 @@
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera'
 import * as Haptics from 'expo-haptics'
+import Pusher from 'pusher-js/react-native'
 import { useEffect, useState } from 'react'
 import { AppState, Button, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-
 export default function App() {
   const [facing, setFacing] = useState<CameraType>('back')
   const [permission, requestPermission] = useCameraPermissions()
@@ -10,7 +10,32 @@ export default function App() {
   const [appState, setAppState] = useState(AppState.currentState)
   const [canScan, setCanScan] = useState(true)
 
+  const cc = async () => {
+    try {
+      // 开启调试日志（生产环境建议关闭）
+      Pusher.logToConsole = true
+
+      // 初始化 Pusher
+      const pusher = new Pusher('b0486ed6384e83d43689', {
+        cluster: 'ap1' // 替换为你的 cluster
+      })
+
+      // 订阅频道
+      const channel = pusher.subscribe('my-channel')
+
+      // 监听事件
+      channel.bind('my-event', function (data) {
+        console.log('收到消息:', data)
+        alert(JSON.stringify(data))
+      })
+    } catch (error) {
+      console.error('Pusher error:', error)
+    }
+  }
+
   useEffect(() => {
+    cc()
+
     const subscription = AppState.addEventListener('change', nextAppState => {
       console.log('nextAppState', nextAppState)
       setAppState(nextAppState)
@@ -24,8 +49,8 @@ export default function App() {
 
   if (!permission) {
     return (
-      <View>
-        <Text style={styles.text}>没权限</Text>
+      <View style={styles.container}>
+        <Text style={styles.message}>加载中...</Text>
       </View>
     )
   }
