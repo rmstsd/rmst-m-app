@@ -1,6 +1,5 @@
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera'
 import * as Haptics from 'expo-haptics'
-import Pusher from 'pusher-js/react-native'
 import { useEffect, useState } from 'react'
 import { AppState, Button, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 export default function App() {
@@ -12,22 +11,6 @@ export default function App() {
 
   const cc = async () => {
     try {
-      // 开启调试日志（生产环境建议关闭）
-      Pusher.logToConsole = true
-
-      // 初始化 Pusher
-      const pusher = new Pusher('b0486ed6384e83d43689', {
-        cluster: 'ap1' // 替换为你的 cluster
-      })
-
-      // 订阅频道
-      const channel = pusher.subscribe('my-channel')
-
-      // 监听事件
-      channel.bind('my-event', function (data) {
-        console.log('收到消息:', data)
-        alert(JSON.stringify(data))
-      })
     } catch (error) {
       console.error('Pusher error:', error)
     }
