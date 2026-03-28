@@ -18,10 +18,26 @@ const widgetConfig: WithAndroidWidgetsParams = {
   ]
 }
 
+// 获取环境变量，默认认为是 production
+const IS_DEV = process.env.APP_VARIANT === 'development'
+const IS_PROD = process.env.APP_VARIANT === 'production'
+
+// 动态设置 App 名称，方便在手机桌面上区分
+const getAppName = () => {
+  if (IS_DEV) return 'rmst-rn_dev'
+  if (IS_PROD) return 'rmst-rn'
+}
+
+// 动态设置唯一的包名/Bundle ID
+const getUniqueIdentifier = () => {
+  if (IS_DEV) return 'com.rmstsd.rmstrn.dev'
+  if (IS_PROD) return 'com.rmstsd.rmstrn.prod'
+}
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'rmst-toolkit',
-  slug: 'rmst-toolkit',
+  name: getAppName(),
+  slug: 'rmst-m-app',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
@@ -43,7 +59,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#FFFFFF'
     },
     edgeToEdgeEnabled: true,
-    package: 'com.rmstsd.rmstmapp'
+    package: getUniqueIdentifier()
   },
   experiments: {
     typedRoutes: true
@@ -54,5 +70,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       projectId: 'e5435add-a257-446b-a5fd-75e2e7537ff5'
     }
   }
+
   // plugins: [['react-native-android-widget', widgetConfig]]
 })

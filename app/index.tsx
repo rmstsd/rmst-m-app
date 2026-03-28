@@ -1,9 +1,39 @@
+import { Pusher, PusherChannel, PusherEvent } from '@pusher/pusher-websocket-react-native'
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera'
 import * as Haptics from 'expo-haptics'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AppState, Button, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
-import { Pusher, PusherEvent } from '@pusher/pusher-websocket-react-native'
+const PUSHER_CHANNEL_NAME = 'my-channel'
+const pusher = Pusher.getInstance()
+
+let pusherReadyPromise: Promise<void> | null = null
+
+async function ensurePusherReady() {
+  if (!pusherReadyPromise) {
+    pusherReadyPromise = (async () => {
+      await pusher.init({ apiKey: 'b0486ed6384e83d43689', cluster: 'ap1' })
+      await pusher.connect()
+    })().catch(error => {
+      pusherReadyPromise = null
+      throw error
+    })
+  }
+
+  await pusherReadyPromise
+}
+
+function parseEventData(data: unknown): any {
+  if (typeof data !== 'string') {
+    return data
+  }
+
+  try {
+    return JSON.parse(data)
+  } catch {
+    return data
+  }
+}
 
 export default function App() {
   const [facing, setFacing] = useState<CameraType>('back')
@@ -11,41 +41,93 @@ export default function App() {
 
   const [appState, setAppState] = useState(AppState.currentState)
   const [canScan, setCanScan] = useState(true)
+  const channelRef = useRef<PusherChannel | null>(null)
+  const subscribePromiseRef = useRef<Promise<PusherChannel> | null>(null)
 
-  const pusherListener = async () => {
-    const pusher = Pusher.getInstance()
+  const handlePusherEvent = (event: PusherEvent) => {
+    console.log('Event received')
+    console.log(event)
+    const data = parseEventData(event.data)
 
-    await pusher.init({
-      apiKey: 'b0486ed6384e83d43689',
-      cluster: 'ap1'
-    })
-
-    await pusher.connect()
-
-    await pusher.subscribe({
-      channelName: 'my-channel',
-      onEvent: (event: PusherEvent) => {
-        console.log(`Event received`)
-        console.log(event)
-        const data = JSON.parse(event.data)
-
-        switch (event.eventName) {
-          case 'open-url': {
-            openLinkingURL(data.url)
-            break
-          }
-
-          default: {
-            console.error('未匹配', event.eventName)
-            break
-          }
+    switch (event.eventName) {
+      case 'open-url': {
+        if (!data || typeof data.url !== 'string') {
+          console.error('open-url payload 无效', data)
+          break
         }
+
+        openLinkingURL(data.url)
+        break
       }
-    })
+
+      default: {
+        console.error('未匹配', event.eventName)
+        break
+      }
+    }
+  }
+
+  const subscribeChannel = async () => {
+    if (subscribePromiseRef.current) {
+      return subscribePromiseRef.current
+    }
+
+    subscribePromiseRef.current = (async () => {
+      const existingChannel = pusher.getChannel(PUSHER_CHANNEL_NAME)
+      if (existingChannel) {
+        existingChannel.onEvent = handlePusherEvent
+        channelRef.current = existingChannel
+        return existingChannel
+      }
+
+      const channel = await pusher.subscribe({
+        channelName: PUSHER_CHANNEL_NAME,
+        onEvent: handlePusherEvent
+      })
+
+      channelRef.current = channel
+      return channel
+    })()
+
+    try {
+      return await subscribePromiseRef.current
+    } finally {
+      subscribePromiseRef.current = null
+    }
+  }
+
+  const subscribe = async () => {
+    await ensurePusherReady()
+    return subscribeChannel()
+  }
+
+  const unsubscribe = async () => {
+    subscribePromiseRef.current = null
+
+    if (!pusher.getChannel(PUSHER_CHANNEL_NAME)) {
+      channelRef.current = null
+      return
+    }
+
+    await pusher.unsubscribe({ channelName: PUSHER_CHANNEL_NAME })
+    channelRef.current = null
   }
 
   useEffect(() => {
-    pusherListener()
+    let isCancelled = false
+
+    void (async () => {
+      try {
+        await ensurePusherReady()
+        if (isCancelled) {
+          return
+        }
+
+        await subscribeChannel()
+      } catch (error) {
+        console.error('Pusher 初始化失败', error)
+      }
+    })()
 
     const subscription = AppState.addEventListener('change', nextAppState => {
       console.log('nextAppState', nextAppState)
@@ -54,9 +136,37 @@ export default function App() {
     })
 
     return () => {
+      isCancelled = true
+      void unsubscribe().catch(error => console.error('取消订阅失败', error))
       subscription.remove()
     }
   }, [])
+
+  function toggleCameraFacing() {
+    setFacing(current => (current === 'back' ? 'front' : 'back'))
+  }
+
+  function openLinkingURL(url) {
+    Linking.openURL(url).catch(err => console.error('An error occurred', err))
+  }
+
+  return (
+    <View style={styles.container}>
+      <Button title="open" onPress={() => {}} />
+      <Button
+        title="订阅"
+        onPress={() => {
+          void subscribe().catch(error => console.error('订阅失败', error))
+        }}
+      />
+      <Button
+        title="取消订阅"
+        onPress={() => {
+          void unsubscribe().catch(error => console.error('取消订阅失败', error))
+        }}
+      />
+    </View>
+  )
 
   if (!permission) {
     return (
@@ -74,14 +184,6 @@ export default function App() {
         <Button onPress={requestPermission} title="grant permission" />
       </View>
     )
-  }
-
-  function toggleCameraFacing() {
-    setFacing(current => (current === 'back' ? 'front' : 'back'))
-  }
-
-  function openLinkingURL(url) {
-    Linking.openURL(url).catch(err => console.error('An error occurred', err))
   }
 
   let camEle = (
@@ -126,7 +228,9 @@ function isValidURL(text) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center'
+    justifyContent: 'center',
+    gap: 10,
+    alignItems: 'center'
   },
   message: {
     textAlign: 'center',
