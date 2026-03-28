@@ -20,8 +20,8 @@ const widgetConfig: WithAndroidWidgetsParams = {
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'rmst-m-app',
-  slug: 'rmst-m-app',
+  name: 'rmst-toolkit',
+  slug: 'rmst-toolkit',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',

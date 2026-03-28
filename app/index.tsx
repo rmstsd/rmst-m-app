@@ -2,6 +2,9 @@ import { CameraType, CameraView, useCameraPermissions } from 'expo-camera'
 import * as Haptics from 'expo-haptics'
 import { useEffect, useState } from 'react'
 import { AppState, Button, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+
+import { Pusher, PusherEvent } from '@pusher/pusher-websocket-react-native'
+
 export default function App() {
   const [facing, setFacing] = useState<CameraType>('back')
   const [permission, requestPermission] = useCameraPermissions()
@@ -9,15 +12,40 @@ export default function App() {
   const [appState, setAppState] = useState(AppState.currentState)
   const [canScan, setCanScan] = useState(true)
 
-  const cc = async () => {
-    try {
-    } catch (error) {
-      console.error('Pusher error:', error)
-    }
+  const pusherListener = async () => {
+    const pusher = Pusher.getInstance()
+
+    await pusher.init({
+      apiKey: 'b0486ed6384e83d43689',
+      cluster: 'ap1'
+    })
+
+    await pusher.connect()
+
+    await pusher.subscribe({
+      channelName: 'my-channel',
+      onEvent: (event: PusherEvent) => {
+        console.log(`Event received`)
+        console.log(event)
+        const data = JSON.parse(event.data)
+
+        switch (event.eventName) {
+          case 'open-url': {
+            openLinkingURL(data.url)
+            break
+          }
+
+          default: {
+            console.error('未匹配', event.eventName)
+            break
+          }
+        }
+      }
+    })
   }
 
   useEffect(() => {
-    cc()
+    pusherListener()
 
     const subscription = AppState.addEventListener('change', nextAppState => {
       console.log('nextAppState', nextAppState)
@@ -52,7 +80,7 @@ export default function App() {
     setFacing(current => (current === 'back' ? 'front' : 'back'))
   }
 
-  const openURL = url => {
+  function openLinkingURL(url) {
     Linking.openURL(url).catch(err => console.error('An error occurred', err))
   }
 
@@ -70,7 +98,7 @@ export default function App() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)
 
             setCanScan(false)
-            openURL(url)
+            openLinkingURL(url)
           } else {
             console.log('Invalid URL:', url)
           }
