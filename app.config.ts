@@ -18,9 +18,10 @@ const widgetConfig: WithAndroidWidgetsParams = {
   ]
 }
 
-// 获取环境变量，默认认为是 production
-const IS_DEV = process.env.APP_VARIANT === 'development'
-const IS_PROD = process.env.APP_VARIANT === 'production'
+const APP_VARIANT = process.env.APP_VARIANT || 'development'
+
+const IS_DEV = APP_VARIANT === 'development'
+const IS_PROD = APP_VARIANT === 'production'
 
 // 动态设置 App 名称，方便在手机桌面上区分
 const getAppName = () => {
